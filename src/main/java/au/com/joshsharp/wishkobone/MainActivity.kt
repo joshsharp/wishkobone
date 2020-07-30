@@ -16,6 +16,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat.startActivity
@@ -38,11 +39,35 @@ class MainActivity : AppCompatActivity() {
     var hasCookie = false
     val viewAdapter = BookAdapter(ArrayList())
     var totalPages = 1
+    var refreshing = false
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        val app = application as WishkoboneApplication
+
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Your wishlist"
+        val toggle =
+            ActionBarDrawerToggle(this, drawerlayout, toolbar, R.string.open, R.string.close)
+        drawerlayout.addDrawerListener(toggle)
+        toggle.isDrawerIndicatorEnabled = true
+        toggle.syncState()
+
+        navigation.setCheckedItem(R.id.home)
+        navigation.setNavigationItemSelectedListener {
+            if (it.itemId == R.id.logout) {
+                app.invalidateCookie()
+                hasCookie = false
+                drawerlayout.closeDrawers()
+                doLogin()
+                return@setNavigationItemSelectedListener true
+            }
+            false
+        }
 
         val viewManager = LinearLayoutManager(this)
 
@@ -60,8 +85,33 @@ class MainActivity : AppCompatActivity() {
             adapter = viewAdapter
         }
 
+        fastscroller.setHandleStateListener(object : RecyclerViewFastScroller.HandleStateListener {
+            override fun onDragged(offset: Float, position: Int) {
+                Log.d("scroller", "dragged: $position")
+                super.onDragged(offset, position)
+            }
 
-        val app = application as WishkoboneApplication
+            override fun onEngaged() {
+                Log.d("scroller", "engaged")
+                super.onEngaged()
+            }
+
+            override fun onReleased() {
+                Log.d("scroller", "released")
+                super.onReleased()
+            }
+        })
+
+        refresher.setOnRefreshListener {
+            if (!refreshing) {
+                viewAdapter.books.clear()
+                viewAdapter.filteredBooks.clear()
+                viewAdapter.notifyDataSetChanged()
+                refresher.isRefreshing = false
+                loadBooks()
+            }
+
+        }
 
         val cookie = app.getCookie()
         if (cookie != null) {
@@ -71,10 +121,9 @@ class MainActivity : AppCompatActivity() {
             doLogin()
         }
 
-
     }
 
-    fun doLogin(){
+    fun doLogin() {
         val login = Intent(this, LoginActivity::class.java)
         startActivity(login);
     }
@@ -86,7 +135,7 @@ class MainActivity : AppCompatActivity() {
             val app = application as WishkoboneApplication
             val cookie = app.getCookie()
             if (cookie != null) { // we just got this via login
-
+                viewAdapter.books.clear()
                 loadBooks()
             }
         }
@@ -128,7 +177,9 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun loadBooks(page: Int = 1) {
+        refreshing = true
         runOnUiThread {
+            snackbar_spinner.visibility = View.VISIBLE
             status.visibility = View.VISIBLE
             status_text.text = "Loading page $page of $totalPages"
         }
@@ -145,7 +196,7 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onResponse(call: Call, r: Response, response: JSONObject) {
-                    if (!response.has("TotalNumPages")){
+                    if (!response.has("TotalNumPages")) {
                         // must be unauthenticated
                         hasCookie = false
                         runOnUiThread {
@@ -200,10 +251,20 @@ class MainActivity : AppCompatActivity() {
                     } else {
                         // the end!
                         runOnUiThread {
+                            refreshing = false
+                            snackbar_spinner.visibility = View.INVISIBLE
                             status_text.text =
                                 "Load complete! ${viewAdapter.books.size} items shown."
                             status.postDelayed({
-                                status.visibility = View.GONE
+                                status.animate()
+                                    .translationY(status.height.toFloat())
+                                    .setDuration(500)
+                                    .withEndAction {
+                                        status.visibility = View.GONE
+                                        status.translationY = 0F
+                                    }
+                                    .start()
+
                             }, 3000)
                         }
                     }
@@ -211,6 +272,7 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onFailureResponse(call: Call, r: Response, response: JSONObject) {
                     hasCookie = false
+                    refreshing = false
                 }
             });
     }
@@ -222,7 +284,7 @@ class MainActivity : AppCompatActivity() {
         // Complex data items may need more than one view per item, and
         // you provide access to all the views for a data item in a view holder.
         // Each data item is just a string in this case that is shown in a TextView.
-        private var filteredBooks: ArrayList<Book> = ArrayList()
+        var filteredBooks: ArrayList<Book> = ArrayList()
 
         init {
             filteredBooks.addAll(books)
@@ -308,6 +370,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             holder.itemView.setOnClickListener {
+                Log.d("click", book.url)
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(book.url))
                 intent.addFlags(FLAG_ACTIVITY_NEW_TASK)
                 startActivity(it.context, intent, null)
@@ -319,6 +382,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onChange(position: Int): CharSequence {
+            Log.d("scroller", "$position")
             return filteredBooks[position].formattedPrice()
         }
 

@@ -15,6 +15,7 @@ class LoginActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
+        setSupportActionBar(toolbar)
         supportActionBar?.title = "Login to Kobo to continue"
 
         val cookieManager = CookieManager.getInstance()
@@ -22,7 +23,6 @@ class LoginActivity : AppCompatActivity() {
         cookieManager.setAcceptThirdPartyCookies(web, true)
 
         web.settings.javaScriptEnabled = true;
-        web.loadUrl("https://www.kobo.com/account/wishlist")
         web.webViewClient = object: WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
@@ -37,6 +37,10 @@ class LoginActivity : AppCompatActivity() {
                     this@LoginActivity.finish()
                 }
             }
+        }
+
+        cookieManager.removeAllCookies {
+            web.loadUrl("https://www.kobo.com/account/wishlist")
         }
     }
 
