@@ -13,20 +13,19 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat.startActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import au.com.joshsharp.wishkobone.databinding.ActivityMainBinding
 import coil.api.load
 import com.google.android.material.snackbar.BaseTransientBottomBar.LENGTH_SHORT
 import com.google.android.material.snackbar.Snackbar
 import com.qtalk.recyclerviewfastscroller.RecyclerViewFastScroller
-import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.*
 import okhttp3.Call
 import okhttp3.Response
 import org.json.JSONObject
@@ -36,33 +35,37 @@ import kotlin.collections.ArrayList
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityMainBinding
     var hasCookie = false
     val viewAdapter = BookAdapter(ArrayList())
     var totalPages = 1
+    var pagesLoaded = 0
     var refreshing = false
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        val view = binding.root
+        setContentView(view)
 
         val app = application as WishkoboneApplication
 
-        setSupportActionBar(toolbar)
+        setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = "Your wishlist"
         val toggle =
-            ActionBarDrawerToggle(this, drawerlayout, toolbar, R.string.open, R.string.close)
-        drawerlayout.addDrawerListener(toggle)
+            ActionBarDrawerToggle(this, binding.drawerlayout, binding.toolbar, R.string.open, R.string.close)
+        binding.drawerlayout.addDrawerListener(toggle)
         toggle.isDrawerIndicatorEnabled = true
         toggle.syncState()
 
-        navigation.setCheckedItem(R.id.home)
-        navigation.setNavigationItemSelectedListener {
+        binding.navigation.setCheckedItem(R.id.home)
+        binding.navigation.setNavigationItemSelectedListener {
             if (it.itemId == R.id.logout) {
                 app.invalidateCookie()
                 hasCookie = false
-                drawerlayout.closeDrawers()
+                binding.drawerlayout.closeDrawers()
                 doLogin()
                 return@setNavigationItemSelectedListener true
             }
@@ -71,9 +74,9 @@ class MainActivity : AppCompatActivity() {
 
         val viewManager = LinearLayoutManager(this)
 
-        status_text.text = "Loading..."
+        binding.statusText.text = "Loading..."
 
-        list.apply {
+        binding.list.apply {
             // use this setting to improve performance if you know that changes
             // in content do not change the layout size of the RecyclerView
             setHasFixedSize(true)
@@ -85,7 +88,7 @@ class MainActivity : AppCompatActivity() {
             adapter = viewAdapter
         }
 
-        fastscroller.setHandleStateListener(object : RecyclerViewFastScroller.HandleStateListener {
+        binding.fastscroller.setHandleStateListener(object : RecyclerViewFastScroller.HandleStateListener {
             override fun onDragged(offset: Float, position: Int) {
                 Log.d("scroller", "dragged: $position")
                 super.onDragged(offset, position)
@@ -102,12 +105,12 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        refresher.setOnRefreshListener {
+        binding.refresher.setOnRefreshListener {
             if (!refreshing) {
                 viewAdapter.books.clear()
                 viewAdapter.filteredBooks.clear()
                 viewAdapter.notifyDataSetChanged()
-                refresher.isRefreshing = false
+                binding.refresher.isRefreshing = false
                 loadBooks()
             }
 
@@ -179,9 +182,13 @@ class MainActivity : AppCompatActivity() {
     private fun loadBooks(page: Int = 1) {
         refreshing = true
         runOnUiThread {
-            snackbar_spinner.visibility = View.VISIBLE
-            status.visibility = View.VISIBLE
-            status_text.text = "Loading page $page of $totalPages"
+            binding.snackbarSpinner.visibility = View.VISIBLE
+            binding.status.visibility = View.VISIBLE
+            if (page == 1){
+                binding.statusText.text = "Loading page $page of $totalPages"
+            } else {
+                binding.statusText.text = "Loading remaining pages..."
+            }
         }
 
         val app = application as WishkoboneApplication
@@ -189,10 +196,16 @@ class MainActivity : AppCompatActivity() {
             "account/wishlist/fetch",
             "{\"pageIndex\":$page}",
             "application/json",
+            null,
             object :
                 JsonCallback() {
                 override fun onFailure(call: Call, e: IOException) {
                     hasCookie = false
+                    pagesLoaded += 1
+
+                    if (pagesLoaded >= totalPages){
+                        finishRefreshing()
+                    }
                 }
 
                 override fun onResponse(call: Call, r: Response, response: JSONObject) {
@@ -217,6 +230,7 @@ class MainActivity : AppCompatActivity() {
                         }
 
                         val price = obj.getString("Price").substring(1).toFloatOrNull()
+                        val currency = obj.getString("Price").substring(0,1)
                         var series: String? = null
                         if (obj.has("Series") && !obj.isNull("Series")) {
                             series = obj.getString("Series")
@@ -228,13 +242,15 @@ class MainActivity : AppCompatActivity() {
                         runOnUiThread {
                             viewAdapter.books.add(
                                 Book(
+                                    obj.getString("CrossRevisionId"),
                                     authorList,
                                     obj.getString("Title"),
                                     "https:" + obj.getString("ImageUrl"),
-                                    "http://www.kobo.com" + obj.getString("ProductUrl"),
+                                    "https://www.kobo.com" + obj.getString("ProductUrl"),
                                     series,
                                     obj.getString("Synopsis"),
-                                    price
+                                    price,
+                                    currency
                                 )
                             )
                         }
@@ -245,36 +261,71 @@ class MainActivity : AppCompatActivity() {
                         viewAdapter.sortBooks()
                     }
 
-                    if (array.length() == 12) {
-                        // full page, probably worth going again
-                        loadBooks(page + 1)
-                    } else {
-                        // the end!
-                        runOnUiThread {
-                            refreshing = false
-                            snackbar_spinner.visibility = View.INVISIBLE
-                            status_text.text =
-                                "Load complete! ${viewAdapter.books.size} items shown."
-                            status.postDelayed({
-                                status.animate()
-                                    .translationY(status.height.toFloat())
-                                    .setDuration(500)
-                                    .withEndAction {
-                                        status.visibility = View.GONE
-                                        status.translationY = 0F
-                                    }
-                                    .start()
+                    if (page == 1) {
+                        if (totalPages > 1) {
 
-                            }, 3000)
+                            // let's do all the rest at once
+                            var tasks: List<Job> = kotlin.collections.ArrayList()
+
+                            for (i in 2..totalPages) {
+
+                                tasks = tasks.plus(
+                                    GlobalScope.launch {
+                                        loadBooks(i)
+                                    }
+                                )
+                            }
+
+                            //tasks.joinAll()
+                            //Log.d("load", "book tasks complete apparently")
+                            //finishRefreshing()
+
                         }
                     }
+
+                    // increment our counter
+                    pagesLoaded += 1
+                    binding.statusText.text =
+                        "${viewAdapter.books.size} items loaded."
+
+                    // call the finish method if our counter is full
+                    if (pagesLoaded >= totalPages){
+                        finishRefreshing()
+                    }
+
                 }
 
                 override fun onFailureResponse(call: Call, r: Response, response: JSONObject) {
                     hasCookie = false
-                    refreshing = false
+                    pagesLoaded += 1
+
+                    if (pagesLoaded >= totalPages){
+                        finishRefreshing()
+                    }
                 }
             });
+    }
+
+    fun finishRefreshing(){
+        Log.d("load", "finish refreshing")
+        // the end!
+        runOnUiThread {
+            refreshing = false
+            binding.snackbarSpinner.visibility = View.INVISIBLE
+            binding.statusText.text =
+                "${viewAdapter.books.size} items loaded."
+            binding.status.postDelayed({
+                binding.status.animate()
+                    .translationY(binding.status.height.toFloat())
+                    .setDuration(500)
+                    .withEndAction {
+                        binding.status.visibility = View.GONE
+                        binding.status.translationY = 0F
+                    }
+                    .start()
+
+            }, 1000)
+        }
     }
 
     class BookAdapter(val books: ArrayList<Book>) :
@@ -351,11 +402,8 @@ class MainActivity : AppCompatActivity() {
             val book = filteredBooks[position]
             holder.title.text = book.title
             holder.authors.text = book.authors.joinToString(", ")
-            if (book.price != null) {
-                holder.price.text = String.format("$%.2f", book.price)
-            } else {
-                holder.price.text = "N/A"
-            }
+
+            holder.price.text = book.formattedPrice()
 
             holder.synopsis.text = Html.fromHtml(book.synopsis).toString().trim()
             if (book.series != null) {
@@ -375,7 +423,30 @@ class MainActivity : AppCompatActivity() {
                 intent.addFlags(FLAG_ACTIVITY_NEW_TASK)
                 startActivity(it.context, intent, null)
             }
+
         }
+
+        private fun removeBook(app : WishkoboneApplication, book: Book, position : Int){
+            val url = "https://www.kobo.com/account/wishlist/removeitem"
+            val json = """{"crossRevisionId":"${book.id}"}"""
+
+            app.client.post(url, json, "application/json", book.url, object :
+                JsonCallback() {
+                override fun onFailure(call: Call, e: IOException) {
+                    Log.e("api", "error removing", e)
+                }
+
+                override fun onResponse(call: Call, r: Response, response: JSONObject) {
+                    books.remove(book)
+                    this@BookAdapter.notifyItemRemoved(position)
+                }
+
+                override fun onFailureResponse(call: Call, r: Response, response: JSONObject) {
+                    super.onFailureResponse(call, r, response)
+                }
+            })
+        }
+
 
         override fun getItemCount(): Int {
             return filteredBooks.size

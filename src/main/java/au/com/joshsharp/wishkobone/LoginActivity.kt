@@ -1,29 +1,47 @@
 package au.com.joshsharp.wishkobone
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
-import kotlinx.android.synthetic.main.activity_login.*
+import android.app.ProgressDialog
+import au.com.joshsharp.wishkobone.databinding.ActivityLoginBinding
+
 
 class LoginActivity : AppCompatActivity() {
+    private lateinit var binding: ActivityLoginBinding
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
+        binding = ActivityLoginBinding.inflate(layoutInflater)
+        val view = binding.root
+        setContentView(view)
 
-        setSupportActionBar(toolbar)
-        supportActionBar?.title = "Login to Kobo to continue"
+
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.title = "Log in to Kobo to continue"
 
         val cookieManager = CookieManager.getInstance()
         cookieManager.setAcceptCookie(true)
-        cookieManager.setAcceptThirdPartyCookies(web, true)
+        cookieManager.setAcceptThirdPartyCookies(binding.web, true)
 
-        web.settings.javaScriptEnabled = true;
-        web.webViewClient = object: WebViewClient() {
+        binding.web.settings.javaScriptEnabled = true;
+        binding.web.webViewClient = object: WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                if (url?.contains("account/wishlist", ignoreCase = true) == true){
+                    val dialog = ProgressDialog.show(
+                        this@LoginActivity, "",
+                        "Loading. Please wait...", true
+                    ).show()
+                }
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
 
@@ -40,7 +58,7 @@ class LoginActivity : AppCompatActivity() {
         }
 
         cookieManager.removeAllCookies {
-            web.loadUrl("https://www.kobo.com/account/wishlist")
+            binding.web.loadUrl("https://www.kobo.com/account/wishlist")
         }
     }
 

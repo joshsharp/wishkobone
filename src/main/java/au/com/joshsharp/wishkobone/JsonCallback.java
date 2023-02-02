@@ -20,7 +20,9 @@ public abstract class JsonCallback implements Callback {
     public void onResponse(@NotNull Call call, @NotNull Response response) throws IOException {
         Object json;
         try {
-            json = new JSONTokener(response.body().string()).nextValue();
+            String body = response.body().string();
+            Log.d("json", String.format("code: %d, body: %s", response.code(), body));
+            json = new JSONTokener(body).nextValue();
             response.body().close();
         } catch (JSONException | NullPointerException e) {
             throw new IOException(e);

@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -29,16 +30,17 @@ import okhttp3.Response;
 public class APIClient {
     private static final String BASE_URL = "https://www.kobo.com/";
     private static OkHttpClient client;
-    private static String agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:64.0) Gecko/20100101 Firefox/64.0";
+    private static final String agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:64.0) Gecko/20100101 Firefox/64.0";
     private String cookieValue;
 
     public APIClient() {
         client = new OkHttpClient.Builder().retryOnConnectionFailure(false)
+                .readTimeout(4, TimeUnit.SECONDS).connectTimeout(4, TimeUnit.SECONDS)
                 .build();
 
     }
 
-    public void setCookie(String value){
+    public void setCookie(String value) {
         cookieValue = value;
     }
 
@@ -53,9 +55,10 @@ public class APIClient {
         Request request = new Request.Builder().url(urlBuilder.build())
                 .get()
                 .addHeader("User-Agent", agent)
-                .addHeader("Referer", "https://www.kobo.com/au/en/account/wishlist")
-                .addHeader("Accept", "application / json, text / javascript, * / *; q = 0.01")
-                .addHeader("Accept-Language", "en-GB,en-AU;q=0.7,en;q=0.3")
+                .addHeader("Origin", "https://www.kobo.com")
+                .addHeader("Referer", "https://www.kobo.com/en/account/wishlist")
+                .addHeader("Accept", "application/json, text/javascript, */*;q=0.01")
+                .addHeader("Accept-Language", "en;q=0.7")
                 .addHeader("X-Requested-With", "XMLHttpRequest")
                 .addHeader("Cookie", "KoboSession=" + cookieValue)
                 .build();
@@ -76,9 +79,10 @@ public class APIClient {
 
         Request request = new Request.Builder().url(getAbsoluteUrl(url)).post(formBody)
                 .addHeader("User-Agent", agent)
-                .addHeader("Referer", "https://www.kobo.com/au/en/account/wishlist")
+                .addHeader("Origin", "https://www.kobo.com")
+                .addHeader("Referer", "https://www.kobo.com/account/wishlist")
                 .addHeader("Accept", "application / json, text / javascript, * / *; q = 0.01")
-                .addHeader("Accept-Language", "en-GB,en-AU;q=0.7,en;q=0.3")
+                .addHeader("Accept-Language", "en;q=0.3")
                 .addHeader("X-Requested-With", "XMLHttpRequest")
                 .addHeader("Cookie", "KoboSession=" + cookieValue)
                 .addHeader("Content-type", contentType)
@@ -87,17 +91,19 @@ public class APIClient {
 
     }
 
-    public void post(String url, @NotNull String payload, String contentType, Callback responseHandler){
-
+    public void post(String url, @NotNull String payload, String contentType, String referer, Callback responseHandler) {
+        if (referer == null){
+            referer = "https://www.kobo.com/account/wishlist";
+        }
         RequestBody body = RequestBody.create(payload, MediaType.get(contentType));
 
         Request request = new Request.Builder().url(getAbsoluteUrl(url)).post(body)
                 .addHeader("User-Agent", agent)
-                .addHeader("Referer", "https://www.kobo.com/au/en/account/wishlist")
+                .addHeader("Origin", "https://www.kobo.com")
+                .addHeader("Referer", referer)
                 .addHeader("Accept", "application/json, text/javascript, */*; q=0.01")
-                .addHeader("Accept-Language", "en-GB,en-AU;q=0.7,en;q=0.3")
+                .addHeader("Accept-Language", "en;q=0.3")
                 .addHeader("X-Requested-With", "XMLHttpRequest")
-                .addHeader("Origin","https://www.kobo.com")
                 .addHeader("Cookie", "KoboSession=" + cookieValue)
                 .addHeader("Content-type", contentType)
                 .build();
@@ -117,7 +123,7 @@ public class APIClient {
                 .addHeader("User-agent", agent)
                 .addHeader("Referer", "https://www.kobo.com/au/en/account/wishlist")
                 .addHeader("Accept", "application / json, text / javascript, * / *; q = 0.01")
-                .addHeader("Accept-Language", "en-GB,en-AU;q=0.7,en;q=0.3")
+                .addHeader("Accept-Language", "en;q=0.3")
                 .addHeader("X-Requested-With", "XMLHttpRequest")
                 .addHeader("Cookie", "KoboSession=" + cookieValue)
                 .build();
@@ -133,7 +139,7 @@ public class APIClient {
                 .addHeader("User-agent", agent)
                 .addHeader("Referer", "https://www.kobo.com/au/en/account/wishlist")
                 .addHeader("Accept", "application/json, text/javascript, */*; q=0.01")
-                .addHeader("Accept-Language", "en-GB,en-AU;q=0.7,en;q=0.3")
+                .addHeader("Accept-Language", "en;q=0.3")
                 .addHeader("X-Requested-With", "XMLHttpRequest")
                 .addHeader("Cookie", String.format("KoboSession=%s;", cookieValue))
                 .addHeader("Content-type", contentType)
