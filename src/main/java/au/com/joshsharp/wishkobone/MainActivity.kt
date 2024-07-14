@@ -31,17 +31,28 @@ import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
 import java.util.*
+import java.util.concurrent.CountDownLatch
 import kotlin.collections.ArrayList
+import kotlin.math.log
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var searchView: SearchView
     var hasCookie = false
     val viewAdapter = BookAdapter(ArrayList())
     var totalPages = 1
     var pagesLoaded = 0
     var refreshing = false
+    var latch: CountDownLatch? = null
+    override fun onBackPressed() {
+        if (searchView.isIconified) {
+            super.onBackPressed()
+        } else {
+            searchView.isIconified = true
+        }
 
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,6 +123,8 @@ class MainActivity : AppCompatActivity() {
                 viewAdapter.notifyDataSetChanged()
                 binding.refresher.isRefreshing = false
                 loadBooks()
+                pagesLoaded = 0
+                totalPages = 1
             }
 
         }
@@ -153,6 +166,7 @@ class MainActivity : AppCompatActivity() {
         val searchManager = getSystemService(Context.SEARCH_SERVICE) as SearchManager
         (menu.findItem(R.id.menu_search).actionView as SearchView).apply {
             val view = this
+            searchView = this
             // Assumes current activity is the searchable activity
             setOnQueryTextListener(object : SearchView.OnQueryTextListener {
                 override fun onQueryTextSubmit(query: String?): Boolean {
@@ -180,16 +194,19 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun loadBooks(page: Int = 1) {
-        refreshing = true
-        runOnUiThread {
-            binding.snackbarSpinner.visibility = View.VISIBLE
-            binding.status.visibility = View.VISIBLE
-            if (page == 1){
-                binding.statusText.text = "Loading page $page of $totalPages"
-            } else {
-                binding.statusText.text = "Loading remaining pages..."
+
+        if (!refreshing) {
+            runOnUiThread {
+                binding.snackbarSpinner.visibility = View.VISIBLE
+                binding.status.visibility = View.VISIBLE
+                if (page == 1) {
+                    binding.statusText.text = "Loading page $page of $totalPages"
+                } else {
+                    binding.statusText.text = "Loading remaining pages..."
+                }
             }
         }
+        refreshing = true
 
         val app = application as WishkoboneApplication
         app.client.post(
@@ -200,6 +217,7 @@ class MainActivity : AppCompatActivity() {
             object :
                 JsonCallback() {
                 override fun onFailure(call: Call, e: IOException) {
+                    Log.d("load", "page failed (io)")
                     hasCookie = false
                     pagesLoaded += 1
 
@@ -261,47 +279,64 @@ class MainActivity : AppCompatActivity() {
                         viewAdapter.sortBooks()
                     }
 
+                    Log.d("load", "page ${page} loaded")
+
+
                     if (page == 1) {
+                        latch = CountDownLatch(totalPages-1)
+                        Log.d("load", "we've set the latch to ${totalPages}")
+
                         if (totalPages > 1) {
 
-                            // let's do all the rest at once
-                            var tasks: List<Job> = kotlin.collections.ArrayList()
+                            Thread {
+                                for (i in 2..totalPages) {
 
-                            for (i in 2..totalPages) {
-
-                                tasks = tasks.plus(
                                     GlobalScope.launch {
                                         loadBooks(i)
                                     }
-                                )
-                            }
 
-                            //tasks.joinAll()
-                            //Log.d("load", "book tasks complete apparently")
-                            //finishRefreshing()
+                                }
 
+                                latch!!.await();
+                                Log.d("load", "book tasks complete apparently")
+                                runOnUiThread {
+                                    finishRefreshing()
+                                }
+                            }.run()
+
+                        } else {
+                            finishRefreshing()
+                        }
+                    } else {
+                        Log.d("load", "page ${page} loaded")
+                        runOnUiThread {
+
+                            binding.statusText.text =
+                                "${viewAdapter.books.size} items loaded."
                         }
                     }
 
+                    latch!!.countDown()
+                    Log.d("load", "latch is now at ${latch!!.count}")
+
+
                     // increment our counter
-                    pagesLoaded += 1
-                    binding.statusText.text =
-                        "${viewAdapter.books.size} items loaded."
+//                    pagesLoaded += 1
+//                    binding.statusText.text =
+//                        "${viewAdapter.books.size} items loaded."
 
                     // call the finish method if our counter is full
-                    if (pagesLoaded >= totalPages){
-                        finishRefreshing()
-                    }
+//                    if (pagesLoaded >= totalPages){
+//                        finishRefreshing()
+//                    }
 
                 }
 
                 override fun onFailureResponse(call: Call, r: Response, response: JSONObject) {
+                    Log.d("load", "page failed (bad response)")
                     hasCookie = false
-                    pagesLoaded += 1
 
-                    if (pagesLoaded >= totalPages){
-                        finishRefreshing()
-                    }
+                    latch!!.countDown()
                 }
             });
     }

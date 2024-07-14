@@ -1,15 +1,17 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 31
+    compileSdkVersion 33
 
     defaultConfig {
         applicationId "au.com.joshsharp.wishkobone"
         minSdkVersion 21
-        targetSdkVersion 31
-        versionCode 3
-        versionName "1.2"
+        targetSdkVersion 33
+        versionCode 5
+        versionName "1.2.2"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -30,7 +32,7 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+    tasks.withType(KotlinCompile).all {
         kotlinOptions {
             jvmTarget = "1.8"
         }

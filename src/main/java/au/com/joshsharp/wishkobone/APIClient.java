@@ -34,8 +34,8 @@ public class APIClient {
     private String cookieValue;
 
     public APIClient() {
-        client = new OkHttpClient.Builder().retryOnConnectionFailure(false)
-                .readTimeout(4, TimeUnit.SECONDS).connectTimeout(4, TimeUnit.SECONDS)
+        client = new OkHttpClient.Builder().retryOnConnectionFailure(true)
+                .readTimeout(8, TimeUnit.SECONDS).connectTimeout(8, TimeUnit.SECONDS)
                 .build();
 
     }
@@ -56,7 +56,7 @@ public class APIClient {
                 .get()
                 .addHeader("User-Agent", agent)
                 .addHeader("Origin", "https://www.kobo.com")
-                .addHeader("Referer", "https://www.kobo.com/en/account/wishlist")
+                .addHeader("Referer", "https://www.kobo.com/account/wishlist")
                 .addHeader("Accept", "application/json, text/javascript, */*;q=0.01")
                 .addHeader("Accept-Language", "en;q=0.7")
                 .addHeader("X-Requested-With", "XMLHttpRequest")
@@ -121,7 +121,7 @@ public class APIClient {
         Request request = new Request.Builder().url(urlBuilder.build())
                 .get()
                 .addHeader("User-agent", agent)
-                .addHeader("Referer", "https://www.kobo.com/au/en/account/wishlist")
+                .addHeader("Referer", "https://www.kobo.com/account/wishlist")
                 .addHeader("Accept", "application / json, text / javascript, * / *; q = 0.01")
                 .addHeader("Accept-Language", "en;q=0.3")
                 .addHeader("X-Requested-With", "XMLHttpRequest")
@@ -132,12 +132,11 @@ public class APIClient {
 
     public Response syncPost(String url, @NotNull String payload, String contentType) throws IOException {
 
-
         RequestBody body = RequestBody.create(payload, MediaType.get(contentType));
 
         Request request = new Request.Builder().url(getAbsoluteUrl(url)).post(body)
                 .addHeader("User-agent", agent)
-                .addHeader("Referer", "https://www.kobo.com/au/en/account/wishlist")
+                .addHeader("Referer", "https://www.kobo.com/account/wishlist")
                 .addHeader("Accept", "application/json, text/javascript, */*; q=0.01")
                 .addHeader("Accept-Language", "en;q=0.3")
                 .addHeader("X-Requested-With", "XMLHttpRequest")
