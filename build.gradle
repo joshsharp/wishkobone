@@ -4,14 +4,14 @@ apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
 android {
-    compileSdkVersion 33
+    compileSdk 35
 
     defaultConfig {
         applicationId "au.com.joshsharp.wishkobone"
         minSdkVersion 21
-        targetSdkVersion 33
-        versionCode 5
-        versionName "1.2.2"
+        targetSdkVersion 35
+        versionCode 9
+        versionName "1.4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -31,6 +31,7 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+    namespace 'au.com.joshsharp.wishkobone'
 
     tasks.withType(KotlinCompile).all {
         kotlinOptions {
@@ -44,6 +45,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.core:core-ktx:1.3.0'
     implementation 'androidx.appcompat:appcompat:1.1.0'
+    implementation 'androidx.activity:activity-ktx:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
     implementation "androidx.drawerlayout:drawerlayout:1.1.0"
     implementation "com.squareup.okhttp3:okhttp:4.7.2"

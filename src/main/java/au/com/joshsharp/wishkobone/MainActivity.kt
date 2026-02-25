@@ -5,7 +5,9 @@ import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.text.Html
 import android.util.Log
@@ -13,11 +15,17 @@ import android.view.LayoutInflater
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.widget.*
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.content.ContextCompat.startActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import au.com.joshsharp.wishkobone.databinding.ActivityMainBinding
@@ -36,6 +44,7 @@ import kotlin.collections.ArrayList
 import kotlin.math.log
 
 class MainActivity : AppCompatActivity() {
+    val STATUS_BAR_TAG = "status_bar"
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var searchView: SearchView
@@ -54,11 +63,70 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    fun applyEdgeToEdgeInsets(statusBarDrawable: Drawable?) {
+        // Add this condition if you only want to support edge to edge in Android 15+ devices else remove this.
+        //if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            val view = findViewById<View>(android.R.id.content)
+            ViewCompat.setOnApplyWindowInsetsListener(view) { v, windowInsets ->
+                val bars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime()
+                )
+
+                val statusBarHeight =
+                    windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+
+                applyStatusBarColor(window, statusBarDrawable, true, statusBarHeight)
+                WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = false
+                WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars = true
+                v.updatePadding(
+                    left = bars.left,
+                    top =  bars.top,
+                    right = bars.right,
+                    bottom = bars.bottom,
+                )
+                windowInsets
+            }
+        //}
+    }
+
+    private fun createStatusBarView(context: Context, statusBarBackground: Drawable?, height: Int): View {
+        val statusBarView = View(context)
+        statusBarView.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, height
+        )
+        statusBarView.background = statusBarBackground
+        statusBarView.tag = STATUS_BAR_TAG
+        return statusBarView
+    }
+
+    fun applyStatusBarColor(window: Window, statusBarBackground: Drawable?, isDecor: Boolean, height: Int): View {
+        val parent =
+            if (isDecor) window.decorView as ViewGroup else (window.findViewById<View>(android.R.id.content) as ViewGroup)
+        var fakeStatusBarView = parent.findViewWithTag<View>(STATUS_BAR_TAG)
+        if (fakeStatusBarView != null) {
+            if (fakeStatusBarView.visibility == View.GONE) {
+                fakeStatusBarView.visibility = View.VISIBLE
+            }
+            fakeStatusBarView.background = statusBarBackground
+        } else {
+            fakeStatusBarView = createStatusBarView(window.context, statusBarBackground, height)
+            parent.addView(fakeStatusBarView)
+        }
+        return fakeStatusBarView
+    }
+
+    override fun onPostResume() {
+        super.onPostResume()
+        applyEdgeToEdgeInsets(getDrawable(R.drawable.statusbar))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         val view = binding.root
+        enableEdgeToEdge()
         setContentView(view)
+        applyEdgeToEdgeInsets(getDrawable(R.drawable.statusbar))
 
         val app = application as WishkoboneApplication
 
