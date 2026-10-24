@@ -29,5 +29,24 @@
         android:layout_marginTop="?attr/actionBarSize"
         android:id="@+id/web"
         />
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/status"
+        app:layout_constraintBottom_toBottomOf="@id/web"
+        android:orientation="horizontal"
+        android:background="@color/snackbar"
+        android:paddingVertical="12dp"
+        android:paddingHorizontal="15dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@android:color/white"
+            android:id="@+id/login_helper"
+            android:textSize="15sp"
+            android:text="Go through the login process until your Kobo wishlist page starts loading, then we'll take over."
+            />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

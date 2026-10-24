@@ -332,7 +332,7 @@ class MainActivity : AppCompatActivity() {
                                     authorList,
                                     obj.getString("Title"),
                                     "https:" + obj.getString("ImageUrl"),
-                                    "https://www.kobo.com" + obj.getString("ProductUrl"),
+                                    obj.getString("ProductUrl"),
                                     series,
                                     obj.getString("Synopsis"),
                                     price,

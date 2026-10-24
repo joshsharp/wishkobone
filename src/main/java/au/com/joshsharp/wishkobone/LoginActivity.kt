@@ -15,12 +15,15 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import androidx.activity.enableEdgeToEdge
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 import au.com.joshsharp.wishkobone.databinding.ActivityLoginBinding
+import java.net.URL
 
 
 class LoginActivity : AppCompatActivity() {
@@ -104,12 +107,20 @@ class LoginActivity : AppCompatActivity() {
         binding.web.webViewClient = object: WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
-                if (url?.contains("account/wishlist", ignoreCase = true) == true){
-                    val dialog = ProgressDialog.show(
-                        this@LoginActivity, "",
-                        "Loading. Please wait...", true
-                    ).show()
+
+                if (!url.isNullOrBlank()){
+                    Log.d("login", url);
+                    val u = URL(url)
+
+//                    if (u.path.contains("account/wishlist", ignoreCase = true)){
+//                        val dialog = ProgressDialog.show(
+//                            this@LoginActivity, "",
+//                            "Loading. Please wait...", true
+//                        ).show()
+//                        Log.d("login", "loading");
+//                    }
                 }
+
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
@@ -125,6 +136,7 @@ class LoginActivity : AppCompatActivity() {
                     this@LoginActivity.finish()
                 }
             }
+
         }
 
         cookieManager.removeAllCookies {
